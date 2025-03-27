@@ -192,10 +192,10 @@ TokenType get_keyword_type(const char *word)
         return T_VOID;
     if (strcmp(word, "while") == 0)
         return T_WHILE;
-    return T_ID; // If not a keyword, it's an identifier
+    return T_ID;
 }
 
-int is_integer_constant(const char *str)
+int integer(const char *str)
 {
     for (int i = 0; str[i] != '\0'; i++)
     {
@@ -207,23 +207,38 @@ int is_integer_constant(const char *str)
     return 1;
 }
 
-int is_float_constant(const char *str)
+int is_float_constant(const char *str) // 
 {
-    int dot_seen = 0;
-    for (int i = 0; str[i] != '\0'; i++)
+    int i = 0, dot_seen = 0, e_seen = 0;
+
+    if (!isdigit(str[i]) && str[i] != '.')
+        return 0;
+
+    while (str[i] != '\0')
     {
         if (str[i] == '.')
         {
-            if (dot_seen)
+            if (dot_seen || e_seen)
                 return 0;
             dot_seen = 1;
+        }
+        else if (str[i] == 'e' || str[i] == 'E')
+        {
+            if (e_seen || i == 0 || !isdigit(str[i - 1]))
+                return 0;
+            e_seen = 1;
+            if (str[i + 1] == '+' || str[i + 1] == '-')
+                i++;
+            if (!isdigit(str[i + 1]))
+                return 0;
         }
         else if (!isdigit(str[i]))
         {
             return 0;
         }
+        i++;
     }
-    return dot_seen;
+    return 1;
 }
 
 void add_token(TokenType type, const char *value)
@@ -246,7 +261,7 @@ void process_formation(const char *formation)
     {
         add_token(type, formation);
     }
-    else if (is_integer_constant(formation))
+    else if (integer(formation))
     {
         add_token(T_CONSTINT, formation);
     }
