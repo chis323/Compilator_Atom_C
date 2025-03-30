@@ -3,19 +3,18 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define MAX_FORMATION_LENGTH 100
-#define NUM_KEYWORDS 11
-#define MAX_LIST_SIZE 1000
+#define MaxTokenLen 100
+#define MaxTokensInList 1000
 
-union Value
+union Value // i can store in token either string or char depending on the token type
 {
-    char string_value[MAX_FORMATION_LENGTH];
+    char string_value[MaxTokenLen];
     char char_value;
 };
 
-typedef enum
+typedef enum // token types
 {
-    T_ID,
+    T_IDENTIFIER,
     T_BREAK,
     T_CHAR,
     T_DOUBLE,
@@ -27,18 +26,19 @@ typedef enum
     T_STRUCT,
     T_VOID,
     T_WHILE,
-    T_CONSTINT,
-    T_CONSTREAL,
-    T_CONSTCHAR,
-    T_CONSTSTRING,
+    T_CONSTANT_INT,
+    T_CONSTANT_REAL,
+    T_CONSTANT_EXP,
+    T_CONSTANT_CHAR,
+    T_CONSTANT_STRING,
     T_COMMA,
     T_SEMICOLON,
-    T_LPAR,
-    T_RPAR,
-    T_LBRACKET,
-    T_RBRACKET,
-    T_LACC,
-    T_RACC,
+    T_LEFT_PAR,
+    T_RIGHT_PAR,
+    T_LEFT_BRACKET,
+    T_RIGHT_BRACKET,
+    T_LEFT_ACCOLADE,
+    T_RIGHT_ACCOLADE,
     T_ADD,
     T_SUB,
     T_MULT,
@@ -49,36 +49,32 @@ typedef enum
     T_NOT,
     T_ASSIGN,
     T_EQUAL,
-    T_NOTEQUAL,
+    T_NOT_EQUAL,
     T_LESS,
-    T_LESSEQUAL,
+    T_LESS_EQUAL,
     T_GREATER,
-    T_GREATEREQUAL,
+    T_GREATER_EQUAL,
     T_SPACE,
     T_COMMENT,
-    T_LINECOMMENT,
+    T_LINE_COMMENT,
     T_END
 } TokenType;
 
-typedef struct
+typedef struct // here I store the token type and its value
 {
-    TokenType type;
-    union Value value;
+    TokenType type;    // ID or BREAK or smth else
+    union Value value; // char or string from the code that represents the value of the respective token
 } Token;
 
-Token token_list[MAX_LIST_SIZE];
+Token token_list[MaxTokensInList];
 int token_list_index = 0;
 
-const char *key_word_array[NUM_KEYWORDS] = {
-    "break", "char", "double", "else", "for", "if",
-    "int", "return", "struct", "void", "while"};
-
-const char *token_type_to_string(TokenType type)
+const char *token_type_to_string(TokenType type) // convert the token into string so i can print it
 {
     switch (type)
     {
-    case T_ID:
-        return "T_ID";
+    case T_IDENTIFIER:
+        return "T_IDENTIFIER";
     case T_BREAK:
         return "T_BREAK";
     case T_CHAR:
@@ -101,30 +97,32 @@ const char *token_type_to_string(TokenType type)
         return "T_VOID";
     case T_WHILE:
         return "T_WHILE";
-    case T_CONSTINT:
-        return "T_CONSTINT";
-    case T_CONSTREAL:
-        return "T_CONSTREAL";
-    case T_CONSTCHAR:
-        return "T_CONSTCHAR";
-    case T_CONSTSTRING:
-        return "T_CONSTSTRING";
+    case T_CONSTANT_INT:
+        return "T_CONSTANT_INT";
+    case T_CONSTANT_EXP:
+        return "T_CONSTANT_EXP";
+    case T_CONSTANT_REAL:
+        return "T_CONSTANT_REAL";
+    case T_CONSTANT_CHAR:
+        return "T_CONSTANT_CHAR";
+    case T_CONSTANT_STRING:
+        return "T_CONSTANT_STRING";
     case T_COMMA:
         return "T_COMMA";
     case T_SEMICOLON:
         return "T_SEMICOLON";
-    case T_LPAR:
-        return "T_LPAR";
-    case T_RPAR:
-        return "T_RPAR";
-    case T_LBRACKET:
-        return "T_LBRACKET";
-    case T_RBRACKET:
-        return "T_RBRACKET";
-    case T_LACC:
-        return "T_LACC";
-    case T_RACC:
-        return "T_RACC";
+    case T_LEFT_PAR:
+        return "T_LEFT_PAR";
+    case T_RIGHT_PAR:
+        return "T_RIGHT_PAR";
+    case T_LEFT_BRACKET:
+        return "T_LEFT_BRACKET";
+    case T_RIGHT_BRACKET:
+        return "T_RIGHT_BRACKET";
+    case T_LEFT_ACCOLADE:
+        return "T_LEFT_ACCOLADE";
+    case T_RIGHT_ACCOLADE:
+        return "T_RIGHT_ACCOLADE";
     case T_ADD:
         return "T_ADD";
     case T_SUB:
@@ -145,22 +143,22 @@ const char *token_type_to_string(TokenType type)
         return "T_ASSIGN";
     case T_EQUAL:
         return "T_EQUAL";
-    case T_NOTEQUAL:
-        return "T_NOTEQUAL";
+    case T_NOT_EQUAL:
+        return "T_NOT_EQUAL";
     case T_LESS:
         return "T_LESS";
-    case T_LESSEQUAL:
-        return "T_LESSEQUAL";
+    case T_LESS_EQUAL:
+        return "T_LESS_EQUAL";
     case T_GREATER:
         return "T_GREATER";
-    case T_GREATEREQUAL:
-        return "T_GREATEREQUAL";
+    case T_GREATER_EQUAL:
+        return "T_GREATER_EQUAL";
     case T_SPACE:
         return "T_SPACE";
     case T_COMMENT:
         return "T_COMMENT";
-    case T_LINECOMMENT:
-        return "T_LINECOMMENT";
+    case T_LINE_COMMENT:
+        return "T_LINE_COMMENT";
     case T_END:
         return "T_END";
     default:
@@ -168,7 +166,7 @@ const char *token_type_to_string(TokenType type)
     }
 }
 
-TokenType get_keyword_type(const char *word)
+TokenType get_keyword_type(const char *word) // here i check if the token is a keyword and i return it
 {
     if (strcmp(word, "break") == 0)
         return T_BREAK;
@@ -192,43 +190,71 @@ TokenType get_keyword_type(const char *word)
         return T_VOID;
     if (strcmp(word, "while") == 0)
         return T_WHILE;
-    return T_ID;
+    return T_IDENTIFIER; // daca nu e niciun keyword, atunci il returnez ca identifier si il verific mai departe in main
 }
 
 int integer(const char *str)
 {
-    for (int i = 0; str[i] != '\0'; i++)
+    if (str == NULL || *str == '\0')
+        return 0;
+    int i = 0;
+    // Hexadecimal case
+    if (str[i] == '0' && (str[i + 1] == 'x' || str[i + 1] == 'X')) // caut 0x sau x
+    {
+        i += 2;                // trec de 0x
+        if (!isxdigit(str[i])) // verific ca dupa 0x sa fie macar o cifra
+            return 0;
+        for (; str[i] != '\0'; i++) // restul cifrelor din numar
+        {
+            if (!isxdigit(str[i]))
+                return 0;
+        }
+        return 1;
+    }
+
+    // Octal de ex. 006
+    if (str[i] == '0') // verific sa fie primu caracter 0
+    {
+        for (i++; str[i] != '\0'; i++) // restu caracterelor sa fie intre 0-7
+        {
+            if (str[i] < '0' || str[i] > '7')
+                return 0;
+        }
+        return 1;
+    }
+    // integer
+    if (str[0] < '1' || str[0] > '9') // prima cifra de la 1 la 9
+        return 0;
+    for (i = 1; str[i] != '\0'; i++)
     {
         if (!isdigit(str[i]))
-        {
             return 0;
-        }
     }
     return 1;
 }
 
-int is_float_constant(const char *str) // 
+int real_constant(const char *str) // exponent si real
 {
-    int i = 0, dot_seen = 0, e_seen = 0;
+    int i = 0, dot = 0, exp = 0;
 
-    if (!isdigit(str[i]) && str[i] != '.')
+    if (!isdigit(str[i]) && str[i] != '.') // gol sau nu incepe cu .
         return 0;
 
     while (str[i] != '\0')
     {
         if (str[i] == '.')
         {
-            if (dot_seen || e_seen)
+            if (dot != 0 || exp != 0)
                 return 0;
-            dot_seen = 1;
+            dot = 1; // daca gasesc un punct activez flagul de dot
         }
         else if (str[i] == 'e' || str[i] == 'E')
         {
-            if (e_seen || i == 0 || !isdigit(str[i - 1]))
-                return 0;
-            e_seen = 1;
+            if (exp != 0 || i == 0 || !isdigit(str[i - 1]))
+                return 0; // daca deja am gasit un E sau primu element este E sau caracterul de dinainte nu e cifra
+            exp = 1;
             if (str[i + 1] == '+' || str[i + 1] == '-')
-                i++;
+                i++; // dupa e trebuie sa vina + sau - de ex. E+10 e-3
             if (!isdigit(str[i + 1]))
                 return 0;
         }
@@ -236,46 +262,47 @@ int is_float_constant(const char *str) //
         {
             return 0;
         }
-        i++;
+        i++; // urmatorul caracter din token
     }
     return 1;
 }
 
 void add_token(TokenType type, const char *value)
 {
-    if (token_list_index >= MAX_LIST_SIZE)
+    if (token_list_index >= MaxTokensInList)
     {
         printf("Token list is full.\n");
         return;
     }
-    token_list[token_list_index].type = type;
-    strncpy(token_list[token_list_index].value.string_value, value, MAX_FORMATION_LENGTH);
-    token_list[token_list_index].value.string_value[MAX_FORMATION_LENGTH - 1] = '\0';
+    token_list[token_list_index].type = type;                                     // ii dau tipul de token
+    strncpy(token_list[token_list_index].value.string_value, value, MaxTokenLen); // copiez in array valoarea de la token
+    token_list[token_list_index].value.string_value[MaxTokenLen - 1] = '\0';      // il inchid cu null ca sa nu puna caractere random in restul pozitiilor libere
     token_list_index++;
 }
 
-void process_formation(const char *formation)
+void Token_Formation(const char *formation)
 {
     TokenType type = get_keyword_type(formation);
-    if (type != T_ID)
+
+    if (type != T_IDENTIFIER)
     {
         add_token(type, formation);
     }
     else if (integer(formation))
     {
-        add_token(T_CONSTINT, formation);
+        add_token(T_CONSTANT_INT, formation);
     }
-    else if (is_float_constant(formation))
+    else if (real_constant(formation))
     {
-        add_token(T_CONSTREAL, formation);
+        add_token(T_CONSTANT_REAL, formation);
     }
     else
     {
-        add_token(T_ID, formation);
+        add_token(T_IDENTIFIER, formation);
     }
 }
 
-void process_delimiter(char chr)
+void token_delimiter(char chr)
 {
     switch (chr)
     {
@@ -286,27 +313,27 @@ void process_delimiter(char chr)
         add_token(T_SEMICOLON, ";");
         break;
     case '(':
-        add_token(T_LPAR, "(");
+        add_token(T_LEFT_PAR, "(");
         break;
     case ')':
-        add_token(T_RPAR, ")");
+        add_token(T_RIGHT_PAR, ")");
         break;
     case '[':
-        add_token(T_LBRACKET, "[");
+        add_token(T_LEFT_BRACKET, "[");
         break;
     case ']':
-        add_token(T_RBRACKET, "]");
+        add_token(T_RIGHT_BRACKET, "]");
         break;
     case '{':
-        add_token(T_LACC, "{");
+        add_token(T_LEFT_ACCOLADE, "{");
         break;
     case '}':
-        add_token(T_RACC, "}");
+        add_token(T_RIGHT_ACCOLADE, "}");
         break;
     }
 }
 
-void process_operator(char curr, char next, FILE *file)
+void token_operators(char curr, char next, FILE *file)
 {
     switch (curr)
     {
@@ -322,24 +349,24 @@ void process_operator(char curr, char next, FILE *file)
     case '/':
         if (next == '/')
         {
-            char comment[MAX_FORMATION_LENGTH];
+            char comment[MaxTokenLen];
             int i = 0;
-            while ((comment[i] = fgetc(file)) != EOF && comment[i] != '\n')
+            while ((comment[i] = fgetc(file)) != EOF && comment[i] != '\n') // comment case si ii dam store in comment[]
             {
                 i++;
             }
-            comment[i] = '\0';
-            add_token(T_LINECOMMENT, comment);
+            comment[i] = '\0'; // eliberam ultimul index dupa ce am terminat de umplut commentul
+            add_token(T_LINE_COMMENT, comment);
         }
-        else if (next == '*')
+        else if (next == '*') // cazul cu comment pe mai multe linii
         {
-            char comment[MAX_FORMATION_LENGTH];
+            char comment[MaxTokenLen];
             int i = 0;
-            while ((comment[i] = fgetc(file)) != EOF)
+            while ((comment[i] = fgetc(file)) != EOF) // citesc caracterele din tot fisierul si ma opresc cand gasesc */
             {
                 if (comment[i] == '*' && (comment[i + 1] = fgetc(file)) == '/')
                 {
-                    comment[i + 2] = '\0';
+                    comment[i + 2] = '\0'; // elimin restul indexului din comment
                     break;
                 }
                 i++;
@@ -348,24 +375,37 @@ void process_operator(char curr, char next, FILE *file)
         }
         else
         {
-            add_token(T_DIV, "/");
+            add_token(T_DIV, "/"); // altfel e tot operator divizor
         }
         break;
-    case '.':
-        add_token(T_DOT, ".");
-        break;
     case '!':
-        add_token(next == '=' ? T_NOTEQUAL : T_NOT, next == '=' ? "!=" : "!");
+        if (next == '=')
+            add_token(T_NOT_EQUAL, "!=");
+        else
+            add_token(T_NOT, "!");
         break;
+
     case '=':
-        add_token(next == '=' ? T_EQUAL : T_ASSIGN, next == '=' ? "==" : "=");
+        if (next == '=')
+            add_token(T_EQUAL, "==");
+        else
+            add_token(T_ASSIGN, "=");
         break;
+
     case '<':
-        add_token(next == '=' ? T_LESSEQUAL : T_LESS, next == '=' ? "<=" : "<");
+        if (next == '=')
+            add_token(T_LESS_EQUAL, "<=");
+        else
+            add_token(T_LESS, "<");
         break;
+
     case '>':
-        add_token(next == '=' ? T_GREATEREQUAL : T_GREATER, next == '=' ? ">=" : ">");
+        if (next == '=')
+            add_token(T_GREATER_EQUAL, ">=");
+        else
+            add_token(T_GREATER, ">");
         break;
+
     case '&':
         if (next == '&')
             add_token(T_AND, "&&");
@@ -377,35 +417,37 @@ void process_operator(char curr, char next, FILE *file)
     }
     if (next == '=' || (curr == '&' && next == '&') || (curr == '|' && next == '|'))
     {
-        fgetc(file);
+        fgetc(file); // la cazurile de doua caractere dau skip la al doilea
     }
 }
 
 void process_char(char curr, FILE *file, char *formation, int *index, int *is_formation, int *in_string)
 {
-    char next = fgetc(file);
-    ungetc(next, file);
+    char next = fgetc(file); // next e urmatorul caracter
+    ungetc(next, file);      // pun caracterul inapoi pt cazul in care vreau sa il mai citesc
 
     if (isspace(curr))
-    {
-        if (*is_formation)
+    { // despartite prin spatiu
+        if (*is_formation != 0)
         {
-            formation[*index] = '\0';
-            process_formation(formation);
+            formation[*index] = '\0'; // resetez si adaug in array
+            Token_Formation(formation);
             *is_formation = 0;
             *index = 0;
         }
-        if (curr == '\n' || curr == '\r' || curr == '\t')
+        if (curr == '\n')
         {
             add_token(T_SPACE, " ");
         }
+        return;
     }
-    else if (*in_string)
+    // cazul de string
+    if (*in_string)
     {
-        if (curr == '"')
+        if (curr == '"') //daca deja suntem intr-un string atunci am gasit ghilimele de inchidere, adaugam token de string si resetam
         {
             formation[*index] = '\0';
-            add_token(T_CONSTSTRING, formation);
+            add_token(T_CONSTANT_STRING, formation);
             *in_string = 0;
             *index = 0;
         }
@@ -413,48 +455,51 @@ void process_char(char curr, FILE *file, char *formation, int *index, int *is_fo
         {
             formation[(*index)++] = curr;
         }
+        return;
     }
-    else if (curr == '"')
+
+    if (curr == '"') //ghilimele de inceput de string
     {
         *in_string = 1;
         *index = 0;
+        return;
     }
-    else if (curr == '\'')
+ // cazul  'A'
+    if (curr == '\'')
     {
         char char_literal = fgetc(file);
         if (char_literal != EOF && fgetc(file) == '\'')
         {
-            char char_value[2] = {char_literal, '\0'};
-            add_token(T_CONSTCHAR, char_value);
+            char char_value[2] = {char_literal, '\0'};//citesc urmatorul caracter si trebuie sa fie tot '
+            add_token(T_CONSTANT_CHAR, char_value);
         }
         else
-        {
-            add_token(T_END, "Invalid character literal");
-        }
+        return;
     }
-    else if (isalnum(curr) || curr == '.' || curr == '_')
+    //_123 or .asdanfj or 213.23.45 errors
+    if (isalnum(curr) || curr == '.' || curr == '_')
     {
         if (!(*is_formation))
         {
             *index = 0;
         }
         *is_formation = 1;
-        if (*index < MAX_FORMATION_LENGTH - 1)
+        if (*index < MaxTokenLen - 1)
         {
             formation[(*index)++] = curr;
         }
+        return;
     }
-    else
+
+    if (*is_formation)
     {
-        if (*is_formation)
-        {
-            formation[*index] = '\0';
-            process_formation(formation);
-            *is_formation = 0;
-        }
-        process_delimiter(curr);
-        process_operator(curr, next, file);
+        formation[*index] = '\0';//scap de caracterele random
+        Token_Formation(formation); // adaug in array
+        *is_formation = 0; //resetez
     }
+
+    token_delimiter(curr);
+    token_operators(curr, next, file); // apelez functiile de delimitator sau operator
 }
 
 int main()
@@ -466,9 +511,9 @@ int main()
     {
         printf("Error opening file: %s\n", filename);
         return 1;
-    }
+    } //citire
 
-    char formation[MAX_FORMATION_LENGTH];
+    char formation[MaxTokenLen];
     int index = 0;
     char curr;
     int is_formation = 0;
@@ -476,13 +521,13 @@ int main()
 
     while ((curr = fgetc(compiling_file)) != EOF)
     {
-        process_char(curr, compiling_file, formation, &index, &is_formation, &in_string);
+        process_char(curr, compiling_file, formation, &index, &is_formation, &in_string);    //citesc caracterul curent si fac procesarea de caracter
     }
 
     if (is_formation)
     {
         formation[index] = '\0';
-        process_formation(formation);
+        Token_Formation(formation);
     }
 
     fclose(compiling_file);
@@ -490,7 +535,7 @@ int main()
     for (int i = 0; i < token_list_index; i++)
     {
         Token token = token_list[i];
-        printf("Token: %s       | Value: %s\n", token_type_to_string(token.type), token.value.string_value);
+        printf("Token: %s       | Value: %s\n", token_type_to_string(token.type), token.value.string_value); //afisez tokenurile din lista in lista
     }
 
     return 0;
