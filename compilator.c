@@ -1,73 +1,7 @@
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <stdlib.h>
-
-#define MaxTokenLen 100
-#define MaxTokensInList 1000
-
-union Value // i can store in token either string or char depending on the token type
-{
-    char string_value[MaxTokenLen];
-    char char_value;
-};
-
-typedef enum // token types
-{
-    T_IDENTIFIER,
-    T_BREAK,
-    T_CHAR,
-    T_DOUBLE,
-    T_ELSE,
-    T_FOR,
-    T_IF,
-    T_INT,
-    T_RETURN,
-    T_STRUCT,
-    T_VOID,
-    T_WHILE,
-    T_CONSTANT_INT,
-    T_CONSTANT_REAL,
-    T_CONSTANT_EXP,
-    T_CONSTANT_CHAR,
-    T_CONSTANT_STRING,
-    T_COMMA,
-    T_SEMICOLON,
-    T_LEFT_PAR,
-    T_RIGHT_PAR,
-    T_LEFT_BRACKET,
-    T_RIGHT_BRACKET,
-    T_LEFT_ACCOLADE,
-    T_RIGHT_ACCOLADE,
-    T_ADD,
-    T_SUB,
-    T_MULT,
-    T_DIV,
-    T_DOT,
-    T_AND,
-    T_OR,
-    T_NOT,
-    T_ASSIGN,
-    T_EQUAL,
-    T_NOT_EQUAL,
-    T_LESS,
-    T_LESS_EQUAL,
-    T_GREATER,
-    T_GREATER_EQUAL,
-    T_SPACE,
-    T_COMMENT,
-    T_LINE_COMMENT,
-    T_END
-} TokenType;
-
-typedef struct // here I store the token type and its value
-{
-    TokenType type;    // ID or BREAK or smth else
-    union Value value; // char or string from the code that represents the value of the respective token
-} Token;
+#include "lexical_analyzer.h"
 
 Token token_list[MaxTokensInList];
-int token_list_index = 0;
+int token_list_index;
 
 const char *token_type_to_string(TokenType type) // convert the token into string so i can print it
 {
@@ -99,8 +33,6 @@ const char *token_type_to_string(TokenType type) // convert the token into strin
         return "T_WHILE";
     case T_CONSTANT_INT:
         return "T_CONSTANT_INT";
-    case T_CONSTANT_EXP:
-        return "T_CONSTANT_EXP";
     case T_CONSTANT_REAL:
         return "T_CONSTANT_REAL";
     case T_CONSTANT_CHAR:
@@ -159,8 +91,8 @@ const char *token_type_to_string(TokenType type) // convert the token into strin
         return "T_COMMENT";
     case T_LINE_COMMENT:
         return "T_LINE_COMMENT";
-    case T_END:
-        return "T_END";
+    case T_EOF:
+        return "T_EOF";
     default:
         return "UNKNOWN";
     }
@@ -351,28 +283,54 @@ void token_operators(char curr, char next, FILE *file)
         {
             char comment[MaxTokenLen];
             int i = 0;
-            while ((comment[i] = fgetc(file)) != EOF && comment[i] != '\n') // comment case si ii dam store in comment[]
+            fgetc(file); // consume the first '/' from '//' pair
+            while ((comment[i] = fgetc(file)) != EOF && comment[i] != '\n')
             {
                 i++;
             }
-            comment[i] = '\0'; // eliberam ultimul index dupa ce am terminat de umplut commentul
+            comment[i] = '\0';
             add_token(T_LINE_COMMENT, comment);
         }
-        else if (next == '*') // cazul cu comment pe mai multe linii
+        else if (next == '*') // Multi-line comment: /* ... */
         {
             char comment[MaxTokenLen];
             int i = 0;
-            while ((comment[i] = fgetc(file)) != EOF) // citesc caracterele din tot fisierul si ma opresc cand gasesc */
+
+            // Start collecting AFTER the initial `/*`
+            while (1)
             {
-                if (comment[i] == '*' && (comment[i + 1] = fgetc(file)) == '/')
-                {
-                    comment[i + 2] = '\0'; // elimin restul indexului din comment
+                char c = fgetc(file);
+                if (c == EOF)
                     break;
+
+                if (c == '*')
+                {
+                    char nextChar = fgetc(file);
+                    if (nextChar == '/')
+                    {
+                        // End of comment
+                        break;
+                    }
+                    else
+                    {
+                        // Not end, include `*` and continue
+                        comment[i++] = '*';
+                        if (nextChar != EOF)
+                            ungetc(nextChar, file);
+                    }
                 }
-                i++;
+                else
+                {
+                    comment[i++] = c;
+                }
+
+                if (i >= MaxTokenLen - 1)
+                    break;
             }
+            comment[i] = '\0'; // terminate string
             add_token(T_COMMENT, comment);
         }
+
         else
         {
             add_token(T_DIV, "/"); // altfel e tot operator divizor
@@ -425,7 +383,6 @@ void process_char(char curr, FILE *file, char *formation, int *index, int *is_fo
 {
     char next = fgetc(file); // next e urmatorul caracter
     ungetc(next, file);      // pun caracterul inapoi pt cazul in care vreau sa il mai citesc
-
     if (isspace(curr))
     { // despartite prin spatiu
         if (*is_formation != 0)
@@ -444,7 +401,7 @@ void process_char(char curr, FILE *file, char *formation, int *index, int *is_fo
     // cazul de string
     if (*in_string)
     {
-        if (curr == '"') //daca deja suntem intr-un string atunci am gasit ghilimele de inchidere, adaugam token de string si resetam
+        if (curr == '"') // daca deja suntem intr-un string atunci am gasit ghilimele de inchidere, adaugam token de string si resetam
         {
             formation[*index] = '\0';
             add_token(T_CONSTANT_STRING, formation);
@@ -458,23 +415,23 @@ void process_char(char curr, FILE *file, char *formation, int *index, int *is_fo
         return;
     }
 
-    if (curr == '"') //ghilimele de inceput de string
+    if (curr == '"') // ghilimele de inceput de string
     {
         *in_string = 1;
         *index = 0;
         return;
     }
- // cazul  'A'
+    // cazul  'A'
     if (curr == '\'')
     {
         char char_literal = fgetc(file);
         if (char_literal != EOF && fgetc(file) == '\'')
         {
-            char char_value[2] = {char_literal, '\0'};//citesc urmatorul caracter si trebuie sa fie tot '
+            char char_value[2] = {char_literal, '\0'}; // citesc urmatorul caracter si trebuie sa fie tot '
             add_token(T_CONSTANT_CHAR, char_value);
         }
         else
-        return;
+            return;
     }
     //_123 or .asdanfj or 213.23.45 errors
     if (isalnum(curr) || curr == '.' || curr == '_')
@@ -493,25 +450,28 @@ void process_char(char curr, FILE *file, char *formation, int *index, int *is_fo
 
     if (*is_formation)
     {
-        formation[*index] = '\0';//scap de caracterele random
+        formation[*index] = '\0';   // scap de caracterele random
         Token_Formation(formation); // adaug in array
-        *is_formation = 0; //resetez
+        *is_formation = 0;          // resetez
     }
 
     token_delimiter(curr);
     token_operators(curr, next, file); // apelez functiile de delimitator sau operator
 }
 
-int main()
+Token *get_tokens()
 {
-    char filename[] = "0.c";
+    return token_list;
+}
 
+void tokenize(const char *filename)
+{
     FILE *compiling_file = fopen(filename, "r");
     if (compiling_file == NULL)
     {
         printf("Error opening file: %s\n", filename);
-        return 1;
-    } //citire
+        return;
+    }
 
     char formation[MaxTokenLen];
     int index = 0;
@@ -521,7 +481,7 @@ int main()
 
     while ((curr = fgetc(compiling_file)) != EOF)
     {
-        process_char(curr, compiling_file, formation, &index, &is_formation, &in_string);    //citesc caracterul curent si fac procesarea de caracter
+        process_char(curr, compiling_file, formation, &index, &is_formation, &in_string);
     }
 
     if (is_formation)
@@ -529,14 +489,17 @@ int main()
         formation[index] = '\0';
         Token_Formation(formation);
     }
-
+    add_token(T_EOF, "EOF");
     fclose(compiling_file);
+}
 
+int main_secondary()
+{
+    tokenize("9.c");
     for (int i = 0; i < token_list_index; i++)
     {
         Token token = token_list[i];
-        printf("Token: %s       | Value: %s\n", token_type_to_string(token.type), token.value.string_value); //afisez tokenurile din lista in lista
+        printf("Token: %s       Value: %s\n", token_type_to_string(token.type), token.value.string_value);
     }
-
     return 0;
 }
