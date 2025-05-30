@@ -158,34 +158,8 @@ void parse_unit() {
             }
         }
 
-        // Function or variable declaration
-        parse_typebase_specifier();
-        skip_whitespace_and_comments();
-
-        Token* lookahead = &token_list[current_token_index];
-        if (lookahead->type == T_MULT) {
-            advance(); // consume '*'
-            skip_whitespace_and_comments();
-            lookahead = &token_list[current_token_index];
-        }
-
-        if (lookahead->type == T_IDENTIFIER) {
-            Token* after_id = lookahead + 1;
-            int j = 1;
-            while ((after_id + j - 1)->type == T_SPACE ||
-                   (after_id + j - 1)->type == T_COMMENT ||
-                   (after_id + j - 1)->type == T_LINE_COMMENT)
-                j++;
-
-            Token* next = after_id + j - 1;
-            if (next->type == T_LEFT_PAR) {
-                parse_function_declaration();
-                continue;
-            }
-        }
-
-        // Default to variable declaration
-        parse_variable_declaration();
+        // Function declaration
+        parse_function_declaration();
     }
 }
 
@@ -194,11 +168,15 @@ void parse_unit() {
 void parse_struct_declaration()
 {
     printf(" Parsing struct declaration\n");
+    Type* t = getType(current_token->type);
     match(T_STRUCT);
     skip_whitespace_and_comments();
+    char *name = current_token->value.string_value;
     match(T_IDENTIFIER);
+    addVar(name, t);
     skip_whitespace_and_comments();
     match(T_LEFT_ACCOLADE);
+    crtStruct = &symbols[symbolCount];
     skip_whitespace_and_comments();
 
     while (current_token->type != T_RIGHT_ACCOLADE && current_token->type != T_EOF)
@@ -208,6 +186,7 @@ void parse_struct_declaration()
     }
     match(T_RIGHT_ACCOLADE);
     match(T_SEMICOLON);
+    crtStruct = NULL;
 }
 
 void parse_typebase_specifier()
@@ -275,29 +254,39 @@ void parse_variable_declaration()
 void parse_function_declaration()
 {
     printf("  Parsing function declaration\n");
+    Type* t = getType(current_token->type);
+    parse_typebase_specifier();
     skip_whitespace_and_comments();
     if (current_token->type == T_MULT)    // array parameter
     {
         match(T_MULT);
     }
+    char *name = current_token->value.string_value;
     match(T_IDENTIFIER);
+    addVar(name, t);
     skip_whitespace_and_comments();
     match(T_LEFT_PAR);
+    crtFunc = &symbols[symbolCount];
     if (current_token->type != T_RIGHT_PAR)
     {
         parse_funcArg();
     }
     match(T_RIGHT_PAR);
     parse_stmCompound();
+    crtFunc = NULL;
 }
 
 void parse_funcArg()
 {
     printf("    Parsing parameter list\n");
+    Type* t = getType(current_token->type);
     parse_typebase_specifier();
     skip_whitespace_and_comments();
+    char *name = current_token->value.string_value;
     match(T_IDENTIFIER);
-
+    crtFunc->args = malloc(MAX_ARGS * sizeof(Symbol));
+    int argIndex = 0;
+    Symbol* arg = addSymbol(crtFunc->args, &argIndex, name, CLS_VAR);
     if (current_token->type == T_LEFT_BRACKET)    // array parameter
     {
         match(T_LEFT_BRACKET);
@@ -306,8 +295,11 @@ void parse_funcArg()
     while (current_token->type == T_COMMA)
     {
         match(T_COMMA);
+        Type* t = getType(current_token->type);
         parse_typebase_specifier();
+        char *name = current_token->value.string_value;
         match(T_IDENTIFIER);
+        Symbol* arg = addSymbol(crtFunc->args, &argIndex, name, CLS_VAR);
         if (current_token->type == T_LEFT_BRACKET)
         {
             match(T_LEFT_BRACKET);

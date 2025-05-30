@@ -10,6 +10,8 @@
 
 #define MaxTokenLen 100
 #define MaxTokensInList 1000
+#define MAX_SYM 1000
+#define MAX_ARGS 20
 
 typedef enum {
     T_IDENTIFIER,
@@ -117,6 +119,12 @@ typedef struct Symbol {
 extern Token token_list[MaxTokensInList];
 extern int token_list_index;
 
+extern Symbol symbols[MAX_SYM];
+extern int symbolCount;
+extern int crtDepth;
+extern Symbol* crtFunc;
+extern Symbol* crtStruct;
+
 const char *token_type_to_string(TokenType type);
 TokenType get_keyword_type(const char *word);
 int integer(const char *str);
@@ -132,4 +140,6 @@ int syntactic_main();
 int semantic_main();
 void addVar(char name[], Type *t);
 Type* getType(TokenType type);
+Symbol *addSymbol(Symbol *symbols, int *count,const char *name, int cls);
+void printSymbolTable();
 #endif
