@@ -1,10 +1,10 @@
 #include "lexical_analyzer.h"
 
 int current_token_index = 0;
-Token* current_token;
-int verbose = 0;  // if 0 => less messages, if 1 => more debug messages
+Token *current_token;
+int verbose = 0; // if 0 => less messages, if 1 => more debug messages
 
-//the function prototypes are needed because some of the functions may be used before they are defined 
+// the function prototypes are needed because some of the functions may be used before they are defined
 void advance();
 void match(TokenType expected_type);
 void skip_whitespace_and_comments();
@@ -33,7 +33,7 @@ void parse_unary_expression();
 void parse_postfix_expression();
 void parse_primary_expression();
 
-void advance()  // Moves the parser to the next token
+void advance() // Moves the parser to the next token
 {
     if (current_token_index + 1 < token_list_index)
     {
@@ -46,7 +46,7 @@ void advance()  // Moves the parser to the next token
     }
 }
 
-void match(TokenType expected_type)  //checks if the current token matches what we expect
+void match(TokenType expected_type) // checks if the current token matches what we expect
 {
     if (current_token->type == expected_type)
     {
@@ -56,18 +56,18 @@ void match(TokenType expected_type)  //checks if the current token matches what 
     else
     {
         printf("Syntax error at token %d: Expected %s but found %s (%s)\n",
-            current_token_index,
-            token_type_to_string(expected_type),
-            token_type_to_string(current_token->type),
-            current_token->value);
+               current_token_index,
+               token_type_to_string(expected_type),
+               token_type_to_string(current_token->type),
+               current_token->value);
         exit(1);
     }
 }
 
-void skip_whitespace_and_comments()  //to avoid parsing what is not needed
+void skip_whitespace_and_comments() // to avoid parsing what is not needed
 {
     while (current_token != NULL &&
-        (current_token->type == T_SPACE ||
+           (current_token->type == T_SPACE ||
             current_token->type == T_COMMENT ||
             current_token->type == T_LINE_COMMENT))
     {
@@ -90,11 +90,13 @@ void parse_program()
     printf("\nProgram parsed successfully!\n");
 }
 
-void parse_unit() {
+void parse_unit()
+{
     printf("Parsing unit\n");
 
     // Continue parsing until EOF
-    while (current_token->type != T_EOF) {
+    while (current_token->type != T_EOF)
+    {
         skip_whitespace_and_comments();
 
         // Error recovery: skip until a valid declaration token
@@ -103,7 +105,8 @@ void parse_unit() {
                  current_token->type == T_CHAR ||
                  current_token->type == T_VOID ||
                  current_token->type == T_DOUBLE ||
-                 current_token->type == T_STRUCT)) {
+                 current_token->type == T_STRUCT))
+        {
             printf("Skip unexpected token: %s (%s)\n",
                    token_type_to_string(current_token->type),
                    current_token->value);
@@ -115,7 +118,8 @@ void parse_unit() {
             break;
 
         // Struct definition or struct-based declaration
-        if (current_token->type == T_STRUCT) {
+        if (current_token->type == T_STRUCT)
+        {
             int i = current_token_index + 1;
 
             // Skip whitespace/comments
@@ -125,8 +129,10 @@ void parse_unit() {
                     token_list[i].type == T_LINE_COMMENT))
                 i++;
 
-            if (i < token_list_index) {
-                if (token_list[i].type == T_IDENTIFIER) {
+            if (i < token_list_index)
+            {
+                if (token_list[i].type == T_IDENTIFIER)
+                {
                     int id_index = i;
                     i++;
 
@@ -138,20 +144,27 @@ void parse_unit() {
                         i++;
 
                     if (i < token_list_index &&
-                        token_list[i].type == T_LEFT_ACCOLADE) {
+                        token_list[i].type == T_LEFT_ACCOLADE)
+                    {
                         // Struct definition: struct Name { ... };
                         parse_struct_declaration();
                         continue;
-                    } else {
+                    }
+                    else
+                    {
                         // Struct-based variable declaration
                         parse_variable_declaration();
                         continue;
                     }
-                } else if (token_list[i].type == T_LEFT_ACCOLADE) {
+                }
+                else if (token_list[i].type == T_LEFT_ACCOLADE)
+                {
                     // Anonymous struct
                     parse_struct_declaration();
                     continue;
-                } else {
+                }
+                else
+                {
                     printf("Syntax error: expected identifier or '{' after 'struct'\n");
                     return;
                 }
@@ -163,23 +176,23 @@ void parse_unit() {
     }
 }
 
-
-
 void parse_struct_declaration()
 {
     printf(" Parsing struct declaration\n");
-    Type* t = getType(current_token->type);
+    Type *t = getType(current_token->type);
     match(T_STRUCT);
     skip_whitespace_and_comments();
     char *name = current_token->value.string_value;
     match(T_IDENTIFIER);
-    addVar(name, t);
+    addVar(name, 0, t);
     skip_whitespace_and_comments();
     match(T_LEFT_ACCOLADE);
-    crtStruct = &symbols[symbolCount];
+    symbols[symbolCount - 1].cls = CLS_STRUCT;
+    crtStruct = &symbols[symbolCount - 1];
     skip_whitespace_and_comments();
+    crtStruct->members = calloc(MAX_ARGS, sizeof(Symbol));
 
-    while (current_token->type != T_RIGHT_ACCOLADE && current_token->type != T_EOF)
+    if (current_token->type != T_RIGHT_ACCOLADE)
     {
         parse_variable_declaration();
         skip_whitespace_and_comments();
@@ -217,14 +230,24 @@ void parse_typebase_specifier()
 void parse_variable_declaration()
 {
     printf("  Parsing variable declaration\n");
-    Type* t = getType(current_token->type);
+    Type *t = getType(current_token->type);
     parse_typebase_specifier();
     skip_whitespace_and_comments();
 
-    do {
+    int structIndex = 0;
+
+    do
+    {
         char *name = current_token->value.string_value;
         match(T_IDENTIFIER);
-        addVar(name, t);
+        if(crtStruct != NULL)
+        {
+            addVar(name, &structIndex, t);
+        }
+        else
+        {
+            addVar(name, 0, t);
+        }
         skip_whitespace_and_comments();
 
         // array declaration with complex expressions like[20 / 4 + 5]
@@ -236,7 +259,7 @@ void parse_variable_declaration()
             skip_whitespace_and_comments();
         }
 
-        // initialization  
+        // initialization
         if (current_token->type == T_ASSIGN)
         {
             match(T_ASSIGN);
@@ -250,23 +273,23 @@ void parse_variable_declaration()
     match(T_SEMICOLON);
 }
 
-
 void parse_function_declaration()
 {
     printf("  Parsing function declaration\n");
-    Type* t = getType(current_token->type);
+    Type *t = getType(current_token->type);
     parse_typebase_specifier();
     skip_whitespace_and_comments();
-    if (current_token->type == T_MULT)    // array parameter
+    if (current_token->type == T_MULT) // array parameter
     {
         match(T_MULT);
     }
     char *name = current_token->value.string_value;
     match(T_IDENTIFIER);
-    addVar(name, t);
+    addVar(name, 0, t);
+    symbols[symbolCount - 1].cls = CLS_FUNC;
     skip_whitespace_and_comments();
     match(T_LEFT_PAR);
-    crtFunc = &symbols[symbolCount];
+    crtFunc = &symbols[symbolCount - 1];
     if (current_token->type != T_RIGHT_PAR)
     {
         parse_funcArg();
@@ -279,15 +302,16 @@ void parse_function_declaration()
 void parse_funcArg()
 {
     printf("    Parsing parameter list\n");
-    Type* t = getType(current_token->type);
+    Type *t = getType(current_token->type);
     parse_typebase_specifier();
     skip_whitespace_and_comments();
     char *name = current_token->value.string_value;
     match(T_IDENTIFIER);
-    crtFunc->args = malloc(MAX_ARGS * sizeof(Symbol));
+    crtFunc->args = calloc(MAX_ARGS, sizeof(Symbol));
+    printf("NUME FUCT %s \n", crtFunc->name);
     int argIndex = 0;
-    Symbol* arg = addSymbol(crtFunc->args, &argIndex, name, CLS_VAR);
-    if (current_token->type == T_LEFT_BRACKET)    // array parameter
+    Symbol *arg = addSymbol(crtFunc->args, &argIndex, name, CLS_VAR);
+    if (current_token->type == T_LEFT_BRACKET) // array parameter
     {
         match(T_LEFT_BRACKET);
         match(T_RIGHT_BRACKET);
@@ -295,11 +319,11 @@ void parse_funcArg()
     while (current_token->type == T_COMMA)
     {
         match(T_COMMA);
-        Type* t = getType(current_token->type);
+        Type *t = getType(current_token->type);
         parse_typebase_specifier();
         char *name = current_token->value.string_value;
         match(T_IDENTIFIER);
-        Symbol* arg = addSymbol(crtFunc->args, &argIndex, name, CLS_VAR);
+        Symbol *arg = addSymbol(crtFunc->args, &argIndex, name, CLS_VAR);
         if (current_token->type == T_LEFT_BRACKET)
         {
             match(T_LEFT_BRACKET);
@@ -322,8 +346,6 @@ void parse_stmCompound()
     }
     match(T_RIGHT_ACCOLADE);
 }
-
-
 
 void parse_stm()
 {
@@ -360,8 +382,7 @@ void parse_stm()
     }
 }
 
-
-void parse_expression_statement()   //for parsing a full expr with ";" at the end
+void parse_expression_statement() // for parsing a full expr with ";" at the end
 {
     printf("      Parsing expression statement\n");
     if (current_token->type != T_SEMICOLON)
@@ -371,7 +392,7 @@ void parse_expression_statement()   //for parsing a full expr with ";" at the en
     match(T_SEMICOLON);
 }
 
-void parse_ifElse_statement()       // part of stm
+void parse_ifElse_statement() // part of stm
 {
     printf("      Parsing if/else statement\n");
     match(T_IF);
@@ -379,7 +400,7 @@ void parse_ifElse_statement()       // part of stm
     parse_expression();
     match(T_RIGHT_PAR);
     parse_stm();
-    skip_whitespace_and_comments(); 
+    skip_whitespace_and_comments();
     if (current_token->type == T_ELSE)
     {
         match(T_ELSE);
@@ -387,7 +408,7 @@ void parse_ifElse_statement()       // part of stm
     }
 }
 
-void parse_whileFor_statement()      //part of stm
+void parse_whileFor_statement() // part of stm
 {
     printf("      Parsing while/for statement\n");
     if (current_token->type == T_WHILE)
@@ -422,9 +443,10 @@ void parse_whileFor_statement()      //part of stm
     }
 }
 
-void parse_returnBreak_statement()     // part of stm
+void parse_returnBreak_statement() // part of stm
 {
-    if (verbose == 1) printf("      Parsing return/break statement\n");
+    if (verbose == 1)
+        printf("      Parsing return/break statement\n");
     if (current_token->type == T_RETURN)
     {
         match(T_RETURN);
@@ -441,8 +463,7 @@ void parse_returnBreak_statement()     // part of stm
     }
 }
 
-
-void parse_expression()             //for parsing just expressions, without ";" at the end
+void parse_expression() // for parsing just expressions, without ";" at the end
 {
     printf("        Parsing expression\n");
     parse_assignment_expression();
@@ -456,21 +477,23 @@ void parse_expression()             //for parsing just expressions, without ";" 
 
 void parse_assignment_expression()
 {
-    if (verbose == 1) printf("          Parsing assignment expression\n");
+    if (verbose == 1)
+        printf("          Parsing assignment expression\n");
 
     // first parsing the left side (could be an array access)
     parse_logical_or_expression();
 
-    if (current_token->type == T_ASSIGN)    // checking for assignment operator
+    if (current_token->type == T_ASSIGN) // checking for assignment operator
     {
         match(T_ASSIGN);
-        parse_assignment_expression();     // parsing the right side
+        parse_assignment_expression(); // parsing the right side
     }
 }
 
 void parse_logical_or_expression()
 {
-    if (verbose == 1) printf("            Parsing logical OR expression\n");
+    if (verbose == 1)
+        printf("            Parsing logical OR expression\n");
     parse_logical_and_expression();
 
     while (current_token->type == T_OR)
@@ -482,7 +505,8 @@ void parse_logical_or_expression()
 
 void parse_logical_and_expression()
 {
-    if (verbose == 1) printf("            Parsing logical AND expression\n");
+    if (verbose == 1)
+        printf("            Parsing logical AND expression\n");
     parse_equality_expression();
 
     while (current_token->type == T_AND)
@@ -494,7 +518,8 @@ void parse_logical_and_expression()
 
 void parse_equality_expression()
 {
-    if (verbose == 1) printf("              Parsing equality expression\n");
+    if (verbose == 1)
+        printf("              Parsing equality expression\n");
     parse_relational_expression();
 
     while (current_token->type == T_EQUAL || current_token->type == T_NOT_EQUAL)
@@ -506,11 +531,12 @@ void parse_equality_expression()
 
 void parse_relational_expression()
 {
-    if (verbose == 1) printf("              Parsing relational expression\n");
+    if (verbose == 1)
+        printf("              Parsing relational expression\n");
     parse_additive_expression();
 
     while (current_token->type == T_LESS || current_token->type == T_GREATER ||
-        current_token->type == T_LESS_EQUAL || current_token->type == T_GREATER_EQUAL)
+           current_token->type == T_LESS_EQUAL || current_token->type == T_GREATER_EQUAL)
     {
         match(current_token->type);
         parse_additive_expression();
@@ -519,7 +545,8 @@ void parse_relational_expression()
 
 void parse_additive_expression()
 {
-    if (verbose == 1) printf("                Parsing additive expression\n");
+    if (verbose == 1)
+        printf("                Parsing additive expression\n");
     parse_multiplicative_expression();
 
     while (current_token->type == T_ADD || current_token->type == T_SUB)
@@ -531,7 +558,8 @@ void parse_additive_expression()
 
 void parse_multiplicative_expression()
 {
-    if (verbose == 1) printf("                Parsing multiplicative expression\n");
+    if (verbose == 1)
+        printf("                Parsing multiplicative expression\n");
     parse_unary_expression();
 
     while (current_token->type == T_MULT || current_token->type == T_DIV)
@@ -543,18 +571,23 @@ void parse_multiplicative_expression()
 
 void parse_unary_expression()
 {
-    if (verbose == 1) printf("                  Parsing unary expression\n");
+    if (verbose == 1)
+        printf("                  Parsing unary expression\n");
     if (current_token->type == T_NOT || current_token->type == T_SUB)
     {
         match(current_token->type);
         parse_unary_expression();
     }
-    else { parse_postfix_expression(); }
+    else
+    {
+        parse_postfix_expression();
+    }
 }
 
 void parse_postfix_expression()
 {
-    if (verbose == 1) printf("                  Parsing postfix expression\n");
+    if (verbose == 1)
+        printf("                  Parsing postfix expression\n");
     parse_primary_expression();
 
     while (1)
@@ -596,7 +629,8 @@ void parse_postfix_expression()
 
 void parse_primary_expression()
 {
-    if (verbose == 1) printf("                    Parsing primary expression\n");
+    if (verbose == 1)
+        printf("                    Parsing primary expression\n");
     skip_whitespace_and_comments();
 
     switch (current_token->type)
@@ -623,9 +657,9 @@ void parse_primary_expression()
 
 int syntactic_main()
 {
-    tokenize("5.c");
+    tokenize("9.c");
     current_token_index = 0;
-    current_token = &token_list[current_token_index]; //current_token is a pointer that always points to the current token being processed by the parser
+    current_token = &token_list[current_token_index]; // current_token is a pointer that always points to the current token being processed by the parser
     parse_program();
 
     return 0;

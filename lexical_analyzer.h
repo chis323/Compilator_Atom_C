@@ -138,7 +138,7 @@ Token *tokenize(const char *filename);
 Token *get_tokens();
 int syntactic_main();
 int semantic_main();
-void addVar(char name[], Type *t);
+void addVar(char name[], int *count, Type *t);
 Type* getType(TokenType type);
 Symbol *addSymbol(Symbol *symbols, int *count,const char *name, int cls);
 void printSymbolTable();

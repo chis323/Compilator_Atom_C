@@ -36,10 +36,10 @@ Symbol *addSymbol(Symbol *symbols, int* count, const char *name, int cls)
     return s;
 }
 
-Symbol *findSymbol(Symbol *symbols, const char *name)
+Symbol *findSymbol(Symbol *symbols, int *count, const char *name)
 {
     // Search in reverse order to find the most recent declaration (like in nested scopes)
-    for (int i = symbolCount - 1; i >= 0; i--)
+    for (int i = *count - 1; i >= 0; i--)
     {
         if (strcmp(symbols[i].name, name) == 0 && symbols[i].depth <= crtDepth)
         {
@@ -69,18 +69,18 @@ void deleteSymbolsAfter(int index)
     symbolCount = index;
 }
 
-void addVar(char name[], Type *t)
+void addVar(char name[], int *count, Type *t)
 {
     Symbol *s;
     if (crtStruct)
     {
-        if (findSymbol(crtStruct->members, name))
+        if (findSymbol(crtStruct->members, count,  name))
             printf("symbol redefinition: %s", name);
-        s = addSymbol(crtStruct->members, &symbolCount, name, CLS_VAR);
+        s = addSymbol(crtStruct->members, count, name, CLS_VAR);
     }
     else if (crtFunc)
     {
-        s = findSymbol(symbols, name);
+        s = findSymbol(symbols, &symbolCount, name);
         if (s && s->depth == crtDepth)
             printf( "symbol redefinition: %s", name);
         s = addSymbol(symbols, &symbolCount, name, CLS_VAR);
@@ -88,7 +88,7 @@ void addVar(char name[], Type *t)
     }
     else
     {
-        if (findSymbol(symbols, name))
+        if (findSymbol(symbols, &symbolCount, name))
             printf( "symbol redefinition: %s", name);
         s = addSymbol(symbols, &symbolCount, name, CLS_VAR);
         s->mem = MEM_GLOBAL;
@@ -114,6 +114,10 @@ Type* getType(TokenType type)
         }
         case T_VOID: {
             t->typeBase = TB_VOID;
+            break;
+        }
+        case T_STRUCT: {
+            t->typeBase = TB_STRUCT;
             break;
         }
        default: {
@@ -186,6 +190,7 @@ void printSymbol(const Symbol* sym)
             printf("    Arg %d: ", i);
             printSymbol(&sym->args[i]);
         }
+        return;
     }
 
     // Print members if it's a struct
